@@ -49,27 +49,38 @@ showPINok : Show PINok
 showPINok = %runElab derive
 
 
-||| Proof that the state is `CardInserted`. Used for Fording.
-public export
-data IsCI : ATMState -> Type where
-  ItIsCI : IsCI (CardInserted (S k))
+--- ||| Proof that the state is `CardInserted`. Used for Fording.
+--- public export
+--- data IsCI : ATMState -> Type where
+---   ItIsCI : IsCI (CardInserted (S k))
 
 
 ||| ChkPINfn updated to take the retry limit into account, using Fording to
 ||| limit ourselves to only `CardInserted` states.
 public export
-ChkPINfn : (ciSt : ATMState) -> {auto ford : IsCI ciSt} -> PINok -> ATMState
-ChkPINfn (CardInserted (S k)) {ford = ItIsCI} Correct = Session
-ChkPINfn (CardInserted (S 0)) {ford = ItIsCI} Incorrect = Ready
-ChkPINfn (CardInserted (S (S k))) {ford = ItIsCI} Incorrect = CardInserted (S k)
+--- ChkPINfn : (ciSt : ATMState) -> {auto ford : IsCI ciSt} -> PINok -> ATMState
+--- ChkPINfn (CardInserted (S k)) {ford = ItIsCI} Correct = Session
+--- ChkPINfn (CardInserted (S 0)) {ford = ItIsCI} Incorrect = Ready
+--- ChkPINfn (CardInserted (S (S k))) {ford = ItIsCI} Incorrect = CardInserted (S k)
+----- ChkPINfn : (tries : Nat) -> {auto canRetry : IsSucc tries} -> PINok -> ATMState
+----- ChkPINfn (S 0) {canRetry=ItIsSucc} Incorrect = Ready
+----- ChkPINfn (S 0) {canRetry=ItIsSucc} Correct = Session
+----- ChkPINfn (S k) Correct = Session
+----- ChkPINfn (S k) Incorrect = CardInserted k
+ChkPINfn : (retries : Nat) -> PINok -> ATMState
+---ChkPINfn 0 _ = Ready
+ChkPINfn 0     Correct   = Session
+ChkPINfn 0     Incorrect = Ready
+ChkPINfn (S k) Correct   = Session
+ChkPINfn (S k) Incorrect = CardInserted k
 
 
 ||| Corrected version of the ISM describing lawful ATM state transitions
 public export
 data ATMOp : (t : Type) -> ATMState -> (t -> ATMState) -> Type where
-  Insert : ATMOp () Ready (const (CardInserted 3))
+  Insert : ATMOp () Ready (const (CardInserted 2))
   CheckPIN :  (pin : Int)
-           -> ATMOp PINok (CardInserted (S tries)) (ChkPINfn (CardInserted (S tries)))
+           -> ATMOp PINok (CardInserted tries) (ChkPINfn tries)
   Dispense :  (amt : Nat)
            -> ATMOp () Session (const Session)
   Eject : ATMOp () st (const Ready)
@@ -81,6 +92,7 @@ Show (ATMOp res st stFn) where
   show (Dispense amt) = "Dispense \{show amt}"
   show Eject = "Eject"
 
+{-
 
 ||| Corrected version of the ISM describing how to chain ATM state transitions
 public export
@@ -100,7 +112,7 @@ dispense2Eject =
   do Op $ Dispense 2
      Op Eject
 
-failing "Mismatch between: CardInserted (S ?tries) and Ready."
+failing "Mismatch between: CardInserted ?tries and Ready."
   noLoop : ATM () Ready (const Ready)
   noLoop =
     do Op Insert
@@ -271,7 +283,7 @@ public export
 public export 0
 PROP_readyInsert : Fn (ATMTrace Ready 1) Bool
 PROP_readyInsert =
-  MkFn (\case (MkATMTrace _ ((MkTS _ (CardInserted 3)) :: trace)) => True
+  MkFn (\case (MkATMTrace _ ((MkTS _ (CardInserted _)) :: trace)) => True
               (MkATMTrace _ _) => False)
 
 
