@@ -95,25 +95,51 @@ Show (ARQOp t st stFn) where
 ------------------------------------------------------------------------
 -- Traceable
 
-public export
-Traceable ARQOp where
-  options (Ready k) =
-    singular (_ ** _ ** MkOpRes (Send (MkPkt 255 k)) ())
+----- public export
+----- Traceable ARQOp where
+-----   options (Ready k) =
+-----     --- singular (_ ** _ ** MkOpRes (Send (MkPkt 255 k)) ())
+-----     pure (_ ** _ ** MkOpRes (Send (MkPkt 255 k)) ())
+----- 
+-----   options (Waiting k) =
+-----     -- note: have to do things manually here bc we want to include `Ack n` s.t.
+-----     --       n =/= k
+-----     --- [ (4, pure (_ ** _ ** MkOpRes Wait Timeout))                -- 20%
+-----     --- , (1, do pure (_ ** _ ** MkOpRes Wait (Ack !arbitrary)))    --  5%
+-----     --- , (15, pure (_ ** _ ** MkOpRes Wait (Ack k)))               -- 75%
+-----     --- ]
+-----     frequency [ (4, pure (_ ** _ ** MkOpRes Wait Timeout))                -- 20%
+-----               , (1, do pure (_ ** _ ** MkOpRes Wait (Ack !arbitrary)))    --  5%
+-----               , (15, pure (_ ** _ ** MkOpRes Wait (Ack k)))               -- 75%
+-----               ]
+----- 
+-----   options (Acked n a) =
+-----     --- case decEq a n of
+-----     ---      (Yes prf) => singular (_ ** _ ** MkOpRes (Proceed prf) ())
+-----     ---      (No contra) => singular (_ ** _ ** MkOpRes (Retry contra) ())
+-----     case decEq a n of
+-----          (Yes prf) => pure (_ ** _ ** MkOpRes (Proceed prf) ())
+-----          (No contra) => pure (_ ** _ ** MkOpRes (Retry contra) ())
 
-  options (Waiting k) =
-    -- note: have to do things manually here bc we want to include `Ack n` s.t.
-    --       n =/= k
-    [ (4, pure (_ ** _ ** MkOpRes Wait Timeout))                -- 20%
-    , (1, do pure (_ ** _ ** MkOpRes Wait (Ack !arbitrary)))    --  5%
-    , (15, pure (_ ** _ ** MkOpRes Wait (Ack k)))               -- 75%
-    ]
+{iSt : ARQState} ->
+Arbitrary (resT ** nsFnT ** OpRes ARQOp resT iSt nsFnT) where
+  arbitrary {iSt=(Ready k)} =
+    pure (_ ** _ ** MkOpRes (Send (MkPkt 255 k)) ())
 
-  options (Acked n a) =
+  arbitrary {iSt=(Waiting k)} =
+    frequency [ (4, pure (_ ** _ ** MkOpRes Wait Timeout))                -- 20%
+              , (1, do pure (_ ** _ ** MkOpRes Wait (Ack !arbitrary)))    --  5%
+              , (15, pure (_ ** _ ** MkOpRes Wait (Ack k)))               -- 75%
+              ]
+
+  arbitrary {iSt=(Acked n a)} =
     case decEq a n of
-         (Yes prf) => singular (_ ** _ ** MkOpRes (Proceed prf) ())
-         (No contra) => singular (_ ** _ ** MkOpRes (Retry contra) ())
+         (Yes prf) => pure (_ ** _ ** MkOpRes (Proceed prf) ())
+         (No contra) => pure (_ ** _ ** MkOpRes (Retry contra) ())
 
+  coarbitrary x = assert_total $ idris_crash "coarb: ARQ OpRes"
 
+{-
 ------------------------------------------------------------------------
 -- Properties
 

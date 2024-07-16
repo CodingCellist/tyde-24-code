@@ -111,14 +111,16 @@ data Trace :  (opT : (t' : _) -> stT -> (t' -> stT) -> Type)
 ------------------------------------------------------------------------
 -- Traceable
 
-||| An operation type is said to be traceable if for some given state, we can
-||| produce a list of valid transitions away from that state, along with a
-||| result they might have produced. (This result could be `arbitrary` although
-||| it does not have to be.)
-public export
-interface Traceable (0 opT : (t' : _) -> stT -> (t' -> stT) -> Type) where
-  options :  (st : stT)
-          -> List (Nat, Gen (resT : Type ** nsFn : resT -> stT ** OpRes opT resT st nsFn))
+----- ||| An operation type is said to be traceable if for some given state, we can
+----- ||| produce a list of valid transitions away from that state, along with a
+----- ||| result they might have produced. (This result could be `arbitrary` although
+----- ||| it does not have to be.)
+----- public export
+----- interface Traceable (0 opT : (t' : _) -> stT -> (t' -> stT) -> Type) where
+----- ---  options :  (st : stT)
+----- ---          -> List (Nat, Gen (resT : Type ** nsFn : resT -> stT ** OpRes opT resT st nsFn))
+-----   options :  (st : stT)
+-----           -> Gen (resT : Type ** nsFn : resT -> stT ** OpRes opT resT st nsFn)
 
 
 ||| When there is only a singular option, wrap it in a `pure` call with a
@@ -179,18 +181,19 @@ Show (Trace opT iSt _) where
 ------------------------------------------------------------------------
 -- Arbitrary
 
-public export
-{0 stT : _} -> {0 opT : _} -> {st : stT} -> Traceable opT =>
-Arbitrary (resT : Type ** nsFn : resT -> stT ** OpRes opT resT st nsFn) where
-  arbitrary {st} = frequency $ options st
-
-  coarbitrary x = assert_total $ idris_crash "coarb: OpRes"
+----- public export
+----- {0 stT : _} -> {0 opT : _} -> {st : stT} -> Traceable opT =>
+----- Arbitrary (resT : Type ** nsFn : resT -> stT ** OpRes opT resT st nsFn) where
+-----   --- arbitrary {st} = frequency $ options st
+-----   arbitrary {st} = options st
+----- 
+-----   coarbitrary x = assert_total $ idris_crash "coarb: OpRes"
 
 public export
 {0 stT : _} -> {iSt : stT} -> {bound : Nat} ->
 {opT : (t' : Type) -> stT -> (t' -> stT) -> Type} ->
 Show stT =>
-Traceable opT =>
+----- Traceable opT =>
 Arbitrary (resT ** nsFnT ** OpRes opT resT iSt nsFnT) =>
 Arbitrary (Trace opT iSt bound) where
   arbitrary {bound = 0} = pure $ MkTrace iSt []
@@ -204,11 +207,13 @@ Arbitrary (Trace opT iSt bound) where
       trace :  (steps : Nat)
             -> (st : stT)
             -> Gen (Vect steps (TraceStep opT))
+            {-
       trace 0 _ = pure []
       trace (S j) st =
         do (_ ** stFn ** opR@(MkOpRes op res)) <- the (Gen (x ** y ** OpRes opT x st y)) arbitrary
            let nextSt = stFn res
            pure $ (MkTS opR nextSt) :: !(trace j nextSt)
+           -}
 
   coarbitrary x = assert_total $ idris_crash "coarb: Trace"
 
