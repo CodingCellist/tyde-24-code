@@ -111,53 +111,14 @@ data Trace :  (opT : (t' : _) -> stT -> (t' -> stT) -> Type)
 ------------------------------------------------------------------------
 -- Traceable
 
------ ||| An operation type is said to be traceable if for some given state, we can
------ ||| produce a list of valid transitions away from that state, along with a
------ ||| result they might have produced. (This result could be `arbitrary` although
------ ||| it does not have to be.)
------ public export
------ interface Traceable (0 opT : (t' : _) -> stT -> (t' -> stT) -> Type) where
------ ---  options :  (st : stT)
------ ---          -> List (Nat, Gen (resT : Type ** nsFn : resT -> stT ** OpRes opT resT st nsFn))
------   options :  (st : stT)
------           -> Gen (resT : Type ** nsFn : resT -> stT ** OpRes opT resT st nsFn)
-
-
-||| When there is only a singular option, wrap it in a `pure` call with a
-||| frequency of 1/1.
+||| An operation type is said to be traceable if for some given state, we can
+||| produce at least one valid transition away from that state, along with a
+||| result it might have produced. (This result could be `arbitrary` although
+||| it does not have to be.)
 public export
-singular :  {0 stT : _}
-         -> {0 opT : (t' : _) -> stT -> (t' -> stT) -> Type}
-         -> {st : stT}
-         -> (resT : Type ** nsFn : resT -> stT ** OpRes opT resT st nsFn)
-         -> List (Nat, Gen (resT : Type ** nsFn : resT -> stT ** OpRes opT resT st nsFn))
-singular option = [(1, pure option)]
-
-
-||| Given a list of options, choose one of them at random, i.e. give each option
-||| equal weighting.
-public export
-choice :  {0 stT : _}
-       -> {0 opT : (t' : _) -> stT -> (t' -> stT) -> Type}
-       -> {st : stT}
-       -> List (resT : Type ** nsFn : resT -> stT ** OpRes opT resT st nsFn)
-       -> List (Nat, Gen (resT : Type ** nsFn : resT -> stT ** OpRes opT resT st nsFn))
-choice xs = map (MkPair 1) (pure <$> xs)
-
-
-||| Given a number of options and matching number of weights, make the options
-||| `pure` generators and pair them with their weigths.
-|||
-||| @ weights The weighting of each option
-||| @ opts    The possible options
-public export
-weighted :  {0 stT : _}
-         -> {0 opT : (t' : _) -> stT -> (t' -> stT) -> Type}
-         -> {st : stT}
-         -> (weights : Vect nOptions Nat)
-         -> (opts : Vect nOptions (resT : Type ** nsFn : resT -> stT ** OpRes opT resT st nsFn))
-         -> List (Nat, Gen (resT : Type ** nsFn : resT -> stT ** OpRes opT resT st nsFn))
-weighted weights opts = toList $ zip weights (pure <$> opts)
+interface Traceable (0 opT : (t' : _) -> stT -> (t' -> stT) -> Type) where
+  options :  (st : stT)
+          -> Gen (resT : Type ** nsFn : resT -> stT ** OpRes opT resT st nsFn)
 
 
 ------------------------------------------------------------------------
@@ -181,19 +142,18 @@ Show (Trace opT iSt _) where
 ------------------------------------------------------------------------
 -- Arbitrary
 
------ public export
------ {0 stT : _} -> {0 opT : _} -> {st : stT} -> Traceable opT =>
------ Arbitrary (resT : Type ** nsFn : resT -> stT ** OpRes opT resT st nsFn) where
------   --- arbitrary {st} = frequency $ options st
------   arbitrary {st} = options st
------ 
------   coarbitrary x = assert_total $ idris_crash "coarb: OpRes"
+public export
+{0 stT : _} -> {0 opT : _} -> {st : stT} -> Traceable opT =>
+Arbitrary (resT : Type ** nsFn : resT -> stT ** OpRes opT resT st nsFn) where
+  arbitrary {st} = options st
+
+  coarbitrary x = assert_total $ idris_crash "coarb: OpRes"
 
 public export
 {0 stT : _} -> {iSt : stT} -> {bound : Nat} ->
 {opT : (t' : Type) -> stT -> (t' -> stT) -> Type} ->
 Show stT =>
------ Traceable opT =>
+Traceable opT =>
 Arbitrary (resT ** nsFnT ** OpRes opT resT iSt nsFnT) =>
 Arbitrary (Trace opT iSt bound) where
   arbitrary {bound = 0} = pure $ MkTrace iSt []
@@ -207,13 +167,11 @@ Arbitrary (Trace opT iSt bound) where
       trace :  (steps : Nat)
             -> (st : stT)
             -> Gen (Vect steps (TraceStep opT))
-            {-
       trace 0 _ = pure []
       trace (S j) st =
         do (_ ** stFn ** opR@(MkOpRes op res)) <- the (Gen (x ** y ** OpRes opT x st y)) arbitrary
            let nextSt = stFn res
            pure $ (MkTS opR nextSt) :: !(trace j nextSt)
-           -}
 
   coarbitrary x = assert_total $ idris_crash "coarb: Trace"
 
