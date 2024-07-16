@@ -37,20 +37,15 @@ data ARQState
 
 
 public export
-data IsWaiting : ARQState -> Type where
-  ItIsWaiting : IsWaiting (Waiting n)
-
-
-public export
-Next : (st : ARQState) -> {auto ford : IsWaiting st} -> WaitRes -> ARQState
-Next (Waiting n) {ford=ItIsWaiting} (Ack a) = Acked n a
-Next (Waiting n) {ford=ItIsWaiting} Timeout = Ready n
+Next : (seqNo : Nat) -> WaitRes -> ARQState
+Next seqNo (Ack a) = Acked seqNo a
+Next seqNo Timeout = Ready seqNo
 
 
 public export
 data ARQOp : (t : _) -> ARQState -> (t -> ARQState) -> Type where
   Send : (pkt : Pkt) -> ARQOp () (Ready pkt.sn) (const $ Waiting (pkt.sn))
-  Wait : ARQOp WaitRes (Waiting n) (Next (Waiting n))
+  Wait : ARQOp WaitRes (Waiting n) (Next n)
   Proceed : (ok : a === n) -> ARQOp () (Acked n a) (const $ Ready (S n))
   Retry : (Not (a === n)) -> ARQOp () (Acked n a) (const $ Ready n)
 
