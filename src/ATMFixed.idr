@@ -49,26 +49,10 @@ showPINok : Show PINok
 showPINok = %runElab derive
 
 
---- ||| Proof that the state is `CardInserted`. Used for Fording.
---- public export
---- data IsCI : ATMState -> Type where
----   ItIsCI : IsCI (CardInserted (S k))
-
-
 ||| ChkPINfn updated to take the retry limit into account, using Fording to
 ||| limit ourselves to only `CardInserted` states.
 public export
---- ChkPINfn : (ciSt : ATMState) -> {auto ford : IsCI ciSt} -> PINok -> ATMState
---- ChkPINfn (CardInserted (S k)) {ford = ItIsCI} Correct = Session
---- ChkPINfn (CardInserted (S 0)) {ford = ItIsCI} Incorrect = Ready
---- ChkPINfn (CardInserted (S (S k))) {ford = ItIsCI} Incorrect = CardInserted (S k)
------ ChkPINfn : (tries : Nat) -> {auto canRetry : IsSucc tries} -> PINok -> ATMState
------ ChkPINfn (S 0) {canRetry=ItIsSucc} Incorrect = Ready
------ ChkPINfn (S 0) {canRetry=ItIsSucc} Correct = Session
------ ChkPINfn (S k) Correct = Session
------ ChkPINfn (S k) Incorrect = CardInserted k
 ChkPINfn : (retries : Nat) -> PINok -> ATMState
----ChkPINfn 0 _ = Ready
 ChkPINfn 0     Correct   = Session
 ChkPINfn 0     Incorrect = Ready
 ChkPINfn (S k) Correct   = Session
@@ -92,7 +76,6 @@ Show (ATMOp res st stFn) where
   show (Dispense amt) = "Dispense \{show amt}"
   show Eject = "Eject"
 
-{-
 
 ||| Corrected version of the ISM describing how to chain ATM state transitions
 public export
