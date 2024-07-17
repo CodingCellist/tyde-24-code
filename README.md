@@ -1,7 +1,7 @@
 # TyDe 2024 Title
 
 The full working code for the
-[TyDe 2024](icfp24.sigplan.org/home/tyde-2024)
+[TyDe 2024](https://icfp24.sigplan.org/home/tyde-2024)
 paper submitted by
 [Thomas Ekström Hansen ![ORCID logo](https://info.orcid.org/wp-content/uploads/2019/11/orcid_16x16.png)](https://orcid.org/0000-0002-2472-9694)
 and
